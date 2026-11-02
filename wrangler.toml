@@ -12,7 +12,7 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "mycat-db"
-database_id = "00000000-0000-0000-0000-000000000000" # 创建 D1 后必须替换为真实 ID
+database_id = "170dfaf6-ab79-4268-a103-90971940d4f5"
 migrations_dir = "migrations"
 
 # Optional: enable private file storage for pet avatars and medical attachments.
