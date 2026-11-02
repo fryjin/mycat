@@ -172,3 +172,19 @@ html,body{background:linear-gradient(180deg,#f4fafc 0%,#eef7f8 100%);color:#3156
 
 /* Keep the full three-cat group visible in the right side of the panoramic hero on desktop and mobile. */
 @media(max-width:850px){.auth-visual>img{object-position:right center}.hero-scene-img{object-position:right center}}
+
+
+/* V1.1.2: right-aligned utility actions and image-only home hero. */
+.topbar .right{margin-left:auto;justify-content:flex-end;flex-shrink:0}
+.storybook-sky.storybook-image-only{height:292px!important;min-height:0!important;padding:0!important;background:#d9f2f6!important;isolation:isolate}
+.storybook-sky.storybook-image-only:before,.storybook-sky.storybook-image-only:after{display:none!important;content:none!important}
+.storybook-sky.storybook-image-only .hero-scene-img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;object-position:right center;z-index:1}
+.storybook-sky.storybook-image-only .hero-scene-overlay,.storybook-sky.storybook-image-only .hero-copy,.storybook-sky.storybook-image-only .doodle-heart,.storybook-sky.storybook-image-only .doodle-star{display:none!important}
+.account-current{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:17px;background:linear-gradient(110deg,#eef9f7,#f2f8fc)}
+.account-current-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:#fff;color:#4b9d9b}
+.account-current strong{display:block;color:#31566b;font-size:15px}
+.account-current p{margin-top:3px;color:#8ba1aa;font-size:11px}
+.logout-settings-btn{width:100%;color:#b65f58;border-color:#f2dfdc;background:#fff8f6}
+.logout-settings-btn:hover{background:#fff0ed}
+@media(max-width:850px){.topbar{justify-content:flex-end}.topbar .left{display:none}.topbar .right{margin-left:auto;justify-content:flex-end}.storybook-sky.storybook-image-only{height:244px!important;min-height:244px!important;border-radius:27px!important}.storybook-sky.storybook-image-only .hero-scene-img{object-position:right center}}
+@media(max-width:390px){.storybook-sky.storybook-image-only{height:228px!important;min-height:228px!important}}
