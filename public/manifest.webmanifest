@@ -1,0 +1,19 @@
+{
+  "name": "三喵健康簿",
+  "short_name": "三喵健康簿",
+  "description": "记录猫咪健康、护理计划与家庭协作。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fcfd",
+  "theme_color": "#f8fcfd",
+  "icons": [
+    {
+      "src": "/assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

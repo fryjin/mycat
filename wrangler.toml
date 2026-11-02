@@ -1,0 +1,23 @@
+name = "mycat"
+main = "src/index.js"
+compatibility_date = "2026-11-02"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mycat-db"
+database_id = "00000000-0000-0000-0000-000000000000" # 创建 D1 后必须替换为真实 ID
+migrations_dir = "migrations"
+
+# Optional: enable private file storage for pet avatars and medical attachments.
+# 1. Run: npx wrangler r2 bucket create mycat-private-files
+# 2. Uncomment the block below and deploy again.
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "mycat-private-files"
