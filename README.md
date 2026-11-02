@@ -1,199 +1,182 @@
-# 三喵健康簿 · Cloudflare D1 初始化版
+# 三喵健康簿 · 固定双账号版 V1.1.0
 
-这是基于现有 V1.0 交互原型整理的可部署 Web 项目。前端保留原有五个主要入口和交互流程，并接入 Cloudflare Worker API、D1 数据库与账号/家庭空间能力。
+基于 Cloudflare Workers + Static Assets + D1 的家庭猫咪健康管理应用。
 
-> GitHub 仓库 `fryjin/mycat` 在本次读取时为空。本项目仅在本地打包，不会自动写入 GitHub。
+- GitHub：`fryjin/mycat`
+- Worker：`mycat`
+- D1：`mycat-db`
+- 固定登录身份：`炮台`、`芋头`
+- 两个身份共享同一个家庭空间及三只猫的健康数据
+- 登录会话：30 天；每次成功登录都会重新签发一份完整 30 天有效期的会话
 
-## 1. 当前版本包含什么
+## 本次更新
 
-### 前端
-- 首页：家庭健康日程、待办/历史已办、逾期与近期统计。
-- 健康日历：按月查看护理计划和历史记录。
-- 添加：新增已办记录、创建待办、按 1/3/6 个月或自定义日期生成下一次待办。
-- 猫咪档案：基础资料、健康记录、体重趋势、资料变化历史。
-- 系统设置：账号独立的提醒偏好、家庭成员、JSON 导入/导出。
-- 新主视觉作为独立静态资源，桌面端与移动端共用响应式布局。
+### 固定双账号登录
+- 登录页仅保留「炮台」和「芋头」两个身份。
+- 两个身份使用同一个家庭登录密钥 `MYCAT_LOGIN_KEY`。
+- 登录密钥仅配置在 Cloudflare Worker Secret 中，不写入前端、不提交到 GitHub，也不包含在本 ZIP。
+- 后端验证身份选项及家庭密钥，成功后签发 HttpOnly、Secure、SameSite=Lax Cookie。
+- 每次成功登录都会新建 30 天会话；过期会话在登录时清理。
+- 自助注册、邀请码加入和邀请码生成入口已关闭。
+- 两个身份共享同一家庭空间；提醒偏好仍按登录身份分别保存。
 
-### 账号与家庭协作
-- 邮箱 + 密码注册/登录。
-- 首个账号创建家庭空间，并自动建立蓝猫、银点、奶牛猫三份空白档案；不会写入虚构的体重、驱虫、疫苗或就诊记录。
-- 家庭最多两位账号。管理员生成一次性邀请码，第二位成员使用邀请码加入。
-- 两位成员共享猫咪档案、健康记录、护理待办和资料变更历史。
-- 通知偏好按账号分别保存。
-- 登录态使用 HttpOnly、Secure、SameSite=Lax Cookie；密码使用 Web Crypto PBKDF2-SHA256 派生哈希，不保存明文密码。
+### 猫咪名称可修改
+- 进入「宠物」→ 选择猫咪 →「修改资料」→ 编辑「小猫名称」。
+- 保存后同步更新猫咪档案和云端家庭数据，并写入资料变化历史。
+- 首页筛选、日历、健康记录、待办等位置均使用档案当前名称。
 
-### 数据层
-- Cloudflare D1 保存用户、家庭、成员、会话、邀请码、猫咪档案、健康记录、护理待办、资料变更和用户偏好。
-- 家庭共享数据使用 revision + sync nonce 做乐观并发控制，避免两台设备同时编辑时静默覆盖。
-- JSON 导入/导出保留为人工备份入口。
-- 可选 R2 私有桶用于头像、病历图片和 PDF；未启用 R2 时，核心档案与记录仍可使用。
+### 横幅图片构图
+- 登录页桌面端将横幅图的裁切焦点右移（86%），尽量完整呈现右侧三只猫。
+- 登录页移动端使用右对齐。
+- 首页横幅在移动端也改为右对齐，避免第三只猫被裁切。
+- 桌面端和移动端使用同一张 `hero-spring-picnic.png`，只调整响应式裁切位置，不再叠加第二张猫图。
 
-## 2. 当前明确未接入的能力
+### D1 数据库
+- `0001_init.sql`：基础表结构。
+- `0002_fixed_accounts.sql`：初始化固定双账号、共享家庭空间、独立提醒偏好和三只猫的初始档案。
+- `npm run deploy` 会先执行远程 D1 migration，再部署 Worker。
 
-以下功能不会被伪装成已完成：
-
-1. **真实通知发送**：目前保存每个账号的推送/邮件偏好与免打扰时段，但尚未接入 Web Push、邮件服务或定时任务。
-2. **附件上传**：需要创建 R2 Bucket 并启用 `wrangler.toml` 中的可选 R2 绑定。D1 不存储文件二进制内容。
-3. **账号安全增强**：当前没有邮箱验证码、密码找回、MFA 和登录限流。建议先作为私人家庭应用使用，不要在未补齐这些能力前开放公开注册推广。
-4. **自动备份策略**：当前提供 JSON 手动导出；Cloudflare D1 的自动备份与恢复策略需要在 Cloudflare 控制台进一步确认。
-5. **旧版头像迁移**：V0.6/V1.0 原型中的本地 Base64 头像不会直接写入 D1。导入旧 JSON 时会跳过 Base64 头像，需要在启用 R2 后重新上传。
-
-本应用是宠物健康信息记录工具，不提供兽医诊断或治疗建议。
-
-## 3. 项目结构
+## 目录结构
 
 ```text
-mycat-cloudflare-d1-v1.0/
+mycat/
 ├── migrations/
-│   └── 0001_init.sql          # D1 初始表结构
+│   ├── 0001_init.sql
+│   └── 0002_fixed_accounts.sql
 ├── public/
-│   ├── index.html             # 页面入口
-│   ├── manifest.webmanifest   # PWA 基础配置
+│   ├── index.html
+│   ├── manifest.webmanifest
 │   └── assets/
-│       ├── app.css            # 原型样式 + 登录页/响应式样式
-│       ├── app.js             # 页面交互、登录与云端同步
+│       ├── app.css
+│       ├── app.js
 │       ├── hero-spring-picnic.png
 │       ├── pet-blue.webp
 │       ├── pet-silver.webp
 │       ├── pet-tux.webp
 │       └── app-icon.svg
-├── src/
-│   └── index.js               # Cloudflare Worker API
-├── wrangler.toml              # Worker、静态资源、D1 绑定
+├── src/index.js
+├── scripts/
 ├── package.json
+├── wrangler.toml
 └── README.md
 ```
 
-## 4. 首次部署（推荐顺序）
+## 上传 GitHub
 
-### 第一步：解压并安装依赖
+1. 解压 ZIP。
+2. 将 ZIP 内的文件和文件夹直接放到 `fryjin/mycat` 仓库根目录，不要再套一层项目文件夹。
+3. 提交到 `main` 分支。
 
-在电脑安装 Node.js LTS。解压项目后，在项目根目录打开终端：
+本包已填写现有 D1 ID，不要重新创建数据库：
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "mycat-db"
+database_id = "170dfaf6-ab79-4268-a103-90971940d4f5"
+migrations_dir = "migrations"
+```
+
+## Cloudflare Workers 网页端配置
+
+### 1. 确认 Git 部署配置
+
+Cloudflare Dashboard → Workers & Pages → `mycat` → Settings → Builds：
+
+| 配置 | 值 |
+|---|---|
+| GitHub 仓库 | `fryjin/mycat` |
+| Production branch | `main` |
+| Root directory | `/` |
+| Build command | 留空 / None |
+| Deploy command | `npm run deploy` |
+
+`npm run deploy` 会依次执行：
+
+```bash
+npm run db:migrate:remote
+wrangler deploy
+```
+
+每次部署先应用尚未执行的 migration，再部署 Worker 和静态资源。D1 migration 会记录执行状态，不会重复应用已完成的 migration。
+
+### 2. 设置家庭登录密钥（必须）
+
+在 Cloudflare Dashboard：
+
+1. 打开 **Workers & Pages → mycat**。
+2. 进入 **Settings → Variables and Secrets**。
+3. 新增一项，类型选择 **Secret**（不要选普通明文变量）。
+4. 名称填写 `MYCAT_LOGIN_KEY`。
+5. 值填写单独提供给你的随机长密钥。
+6. 保存后触发一次新的部署，让 Worker 运行时读取该 Secret。
+
+**安全要求：**
+- 不要把密钥放进 `wrangler.toml`、`app.js`、README、GitHub 或 ZIP。
+- 炮台和芋头登录时选择各自身份，并输入同一个家庭登录密钥。
+- 如果怀疑密钥泄露，在 Cloudflare Secret 中更换并重新部署；更换后旧密钥无法再登录，但已签发的 30 天会话仍会持续有效，若要立即撤销所有会话，需要另行清理 `sessions` 表。
+
+### 3. D1 migration
+
+现有 D1 已经创建并执行过 `0001_init.sql`。本次新增 `0002_fixed_accounts.sql`，下一次 Cloudflare Git 部署时由 `npm run deploy` 自动应用。
+
+部署成功后，在 D1 → `mycat-db` → Console 执行：
+
+```sql
+SELECT name FROM sqlite_master
+WHERE type = 'table'
+ORDER BY name;
+```
+
+再检查固定账号：
+
+```sql
+SELECT id, name
+FROM users
+WHERE id IN ('mycat-user-paotai', 'mycat-user-yutou')
+ORDER BY id;
+```
+
+检查三只猫：
+
+```sql
+SELECT id, name, breed
+FROM pets
+WHERE family_id = 'mycat-family-fixed'
+ORDER BY id;
+```
+
+应看到两个固定账号和三只初始猫咪档案。不会自动插入虚构的体重、驱虫、疫苗或就诊记录。
+
+## 本地开发（可选）
+
+需要本地运行时：
 
 ```bash
 npm install
 ```
 
-### 第二步：登录 Cloudflare
+复制 `.dev.vars.example` 为 `.dev.vars`，填入本地开发密钥：
 
-```bash
-npx wrangler login
+```dotenv
+MYCAT_LOGIN_KEY="your-local-long-random-key"
 ```
 
-浏览器会打开 Cloudflare 授权页面，使用你准备部署的 Cloudflare 账号授权。
-
-### 第三步：创建 D1 数据库
-
-```bash
-npx wrangler d1 create mycat-db
-```
-
-命令成功后会返回数据库信息，其中包含 `database_id`。打开项目根目录的 `wrangler.toml`，找到：
-
-```toml
-database_id = "00000000-0000-0000-0000-000000000000"
-```
-
-将它替换成刚刚返回的真实 ID，保留双引号。这个全零 ID 只是初始化占位值，**不替换就不能正常连接远程 D1**。不要把账号密码写进前端代码。
-
-如果你已经有名为 `mycat-db` 的 D1 数据库，不要重复创建；先在 Cloudflare 控制台确认现有数据库 ID，再填入配置。
-
-### 第四步：初始化本地 D1
-
-```bash
-npm run db:migrate:local
-```
-
-这一步会在本地 Wrangler 数据目录中创建表，便于本地开发测试。
-
-### 第五步：本地运行
+然后运行：
 
 ```bash
 npm run dev
 ```
 
-终端会显示本地访问地址，通常是 `http://localhost:8787`。首次打开应看到登录页；选择「创建家庭」即可创建第一个账号和家庭空间。
+`.dev.vars` 已加入 `.gitignore`，不要提交。
 
-停止本地服务按 `Ctrl + C`。
+## 当前功能边界
 
-### 第六步：初始化 Cloudflare 远程 D1
+- 30 天登录会话、固定双账号和家庭数据共享已实现。
+- 猫咪名称修改已支持，并会保存到 D1。
+- 通知设置目前保存用户偏好；真实 Web Push、邮件发送和定时提醒尚未接入。
+- R2 附件上传需要额外创建 Bucket 并启用 `wrangler.toml` 中的 R2 绑定。
+- 当前没有邮箱验证码、密码找回和 MFA。请将家庭登录密钥仅分享给可信家庭成员。
+- `0002_fixed_accounts.sql` 会建立一个新的固定家庭空间，不会删除旧用户或旧家庭数据；如果之前已在旧账号中录入真实数据，需要另行迁移，不要手动删除旧数据。
 
-确认 `wrangler.toml` 中的 `database_id` 正确后执行：
-
-```bash
-npm run db:migrate:remote
-```
-
-看到 `0001_init.sql` 应用成功后，远程数据库表结构就初始化完成了。
-
-### 第七步：部署 Worker + 静态资源
-
-```bash
-npm run deploy
-```
-
-Wrangler 会一起发布 Worker API 和 `public/` 静态文件。部署完成后，终端会返回 `workers.dev` 地址。
-
-## 5. 上传到 GitHub（手动）
-
-仓库目前为空，可以将解压后的项目文件作为仓库根目录内容：
-
-```bash
-git clone https://github.com/fryjin/mycat.git
-```
-
-把本项目文件复制到 `mycat/` 仓库目录（不要把最外层项目文件夹再套一层），然后：
-
-```bash
-git add .
-git commit -m "Initialize MyCat Cloudflare D1 app"
-git push origin main
-```
-
-`.gitignore` 已排除 `node_modules/`、`.wrangler/`、`.dev.vars` 等本地文件。
-
-## 6. 可选：启用 R2 私有附件
-
-核心应用不依赖 R2。需要上传猫咪头像、检查报告或 PDF 时再启用：
-
-1. 创建 Bucket：
-
-   ```bash
-   npx wrangler r2 bucket create mycat-private-files
-   ```
-
-2. 打开 `wrangler.toml`，取消注释：
-
-   ```toml
-   [[r2_buckets]]
-   binding = "FILES"
-   bucket_name = "mycat-private-files"
-   ```
-
-3. 重新部署：
-
-   ```bash
-   npm run deploy
-   ```
-
-文件使用家庭 ID 作为对象路径前缀，读取附件时 Worker 会验证登录态和家庭归属，不创建公开 R2 URL。
-
-## 7. 常用命令
-
-| 命令 | 用途 |
-|---|---|
-| `npm run dev` | 本地启动 Worker + 静态资源 |
-| `npm run test` | 检查 Worker 与前端 JavaScript 语法 |
-| `npm run db:migrate:local` | 应用本地 D1 迁移 |
-| `npm run db:migrate:remote` | 应用远程 D1 迁移 |
-| `npm run db:migrations:list` | 查看远程迁移状态 |
-| `npm run deploy` | 部署 Worker 与静态资源 |
-
-## 8. 故障排查
-
-- **页面提示无法连接云端**：先确认 Worker 已部署，且远程 D1 已执行 `npm run db:migrate:remote`。
-- **D1 binding not found**：检查 `wrangler.toml` 中 `binding = "DB"`，并确认数据库 ID 填写正确。
-- **数据库表不存在**：重新查看 `npm run db:migrations:list`，确认 `0001_init.sql` 已应用到 remote。
-- **头像/附件上传提示未配置 R2**：这是预期行为；按第 6 节启用 R2，或暂时不使用附件功能。
-- **家庭邀请码无法加入**：邀请码 7 天有效、一次性使用，且家庭成员上限为两人；让管理员重新生成即可。
-- **两台设备同时编辑**：若出现并发冲突，页面会切换到云端最新数据，并把未同步的本地快照保存在当前浏览器 localStorage 的冲突备份键中。出现提示后先导出/核对，不要连续重复提交。
+本应用用于宠物健康信息记录，不提供兽医诊断或治疗建议。

@@ -1,6 +1,9 @@
 const SESSION_COOKIE = "mycat_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
-const PASSWORD_ITERATIONS = 210_000;
+const FIXED_LOGIN_ACCOUNTS = Object.freeze({
+  paotai: { id: "mycat-user-paotai", name: "炮台" },
+  yutou: { id: "mycat-user-yutou", name: "芋头" },
+});
 const encoder = new TextEncoder();
 
 const DEFAULT_PREFERENCES = {
@@ -38,22 +41,11 @@ function uuid() {
   return crypto.randomUUID();
 }
 
-function randomHex(size = 16) {
-  const bytes = crypto.getRandomValues(new Uint8Array(size));
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function randomToken(size = 32) {
   const bytes = crypto.getRandomValues(new Uint8Array(size));
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function hexToBytes(hex) {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i += 1) bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return bytes;
 }
 
 function toHex(bytes) {
@@ -63,16 +55,6 @@ function toHex(bytes) {
 async function sha256(value) {
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
   return toHex(new Uint8Array(digest));
-}
-
-async function hashPassword(password, saltHex) {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: hexToBytes(saltHex), iterations: PASSWORD_ITERATIONS, hash: "SHA-256" },
-    key,
-    256,
-  );
-  return toHex(new Uint8Array(bits));
 }
 
 function constantTimeEqual(left, right) {
@@ -152,131 +134,30 @@ async function requireSession(request, env) {
   return session;
 }
 
-function initialPets() {
-  const now = nowIso();
-  return [
-    { id: uuid(), name: "蓝猫", breed: "英国短毛猫", sex: "", birthday: "", neutered: "", chip: "", allergy: "", notes: "", tone: "blue", photo: "" },
-    { id: uuid(), name: "银点", breed: "银点", sex: "", birthday: "", neutered: "", chip: "", allergy: "", notes: "", tone: "silver", photo: "" },
-    { id: uuid(), name: "奶牛猫", breed: "中华田园猫", sex: "", birthday: "", neutered: "", chip: "", allergy: "", notes: "", tone: "tux", photo: "" },
-  ].map((pet) => ({ ...pet, createdAt: now }));
-}
-
-function validateEmail(value) {
-  const email = String(value || "").trim().toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-  return email;
-}
-
-function validatePassword(value) {
-  const password = String(value || "");
-  if (password.length < 10 || password.length > 128) return null;
-  return password;
-}
-
-async function register(request, env) {
-  const body = await readJson(request, 20_000);
-  const email = validateEmail(body.email);
-  const password = validatePassword(body.password);
-  const name = String(body.name || "").trim().slice(0, 40);
-  const familyName = String(body.familyName || "我们的小家").trim().slice(0, 60) || "我们的小家";
-  if (!email) return error("请输入有效的邮箱地址");
-  if (!password) return error("密码长度需要在 10 至 128 位之间");
-  if (!name) return error("请填写你的称呼");
-
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-  if (existing) return error("这个邮箱已经注册，请直接登录", 409);
-
-  const userId = uuid();
-  const familyId = uuid();
-  const now = nowIso();
-  const salt = randomHex(16);
-  const passwordHash = await hashPassword(password, salt);
-  const pets = initialPets();
-  const statements = [
-    env.DB.prepare("INSERT INTO users (id, email, name, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(userId, email, name, passwordHash, salt, now),
-    env.DB.prepare("INSERT INTO families (id, name, owner_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(familyId, familyName, userId, now, now),
-    env.DB.prepare("INSERT INTO family_members (family_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)")
-      .bind(familyId, userId, now),
-    env.DB.prepare("INSERT INTO family_state (family_id, revision, sync_nonce, updated_at) VALUES (?, 0, '', ?)")
-      .bind(familyId, now),
-    env.DB.prepare("INSERT INTO user_preferences (user_id, settings_json, updated_at) VALUES (?, ?, ?)")
-      .bind(userId, JSON.stringify(DEFAULT_PREFERENCES), now),
-    ...pets.map((pet) => env.DB.prepare(
-      "INSERT INTO pets (id, family_id, name, breed, tone, data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    ).bind(pet.id, familyId, pet.name, pet.breed, pet.tone, JSON.stringify(pet), now, now)),
-  ];
-  await env.DB.batch(statements);
-  const token = await createSession(env, userId);
-  return json({ ok: true }, 201, { "Set-Cookie": sessionCookie(token) });
-}
-
 async function login(request, env) {
   const body = await readJson(request, 20_000);
-  const email = validateEmail(body.email);
-  const password = String(body.password || "");
-  if (!email) return error("请输入有效的邮箱地址");
-  if (!password || password.length > 128) return error("请输入有效密码");
-  const user = await env.DB.prepare("SELECT id, password_hash, password_salt FROM users WHERE email = ?").bind(email).first();
-  if (!user) return error("邮箱或密码不正确", 401);
-  const candidate = await hashPassword(password, user.password_salt);
-  if (!constantTimeEqual(candidate, user.password_hash)) return error("邮箱或密码不正确", 401);
+  const accountKey = String(body.account || "");
+  const account = FIXED_LOGIN_ACCOUNTS[accountKey];
+  const loginKey = String(body.loginKey || "");
+  const configuredKey = String(env.MYCAT_LOGIN_KEY || "");
+
+  if (!configuredKey) {
+    return error("服务器尚未配置 MYCAT_LOGIN_KEY，请在 Cloudflare Worker 的 Variables and Secrets 中添加密钥", 503);
+  }
+  if (!account || !loginKey || loginKey.length > 256 || !constantTimeEqual(loginKey, configuredKey)) {
+    return error("登录身份或家庭登录密钥不正确", 401);
+  }
+
+  const user = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(account.id).first();
+  if (!user) {
+    return error("固定账号尚未初始化，请确认已部署 0002_fixed_accounts.sql 数据库迁移", 503);
+  }
+
+  // Each successful login creates a fresh 30-day session. Expired sessions are cleaned up.
+  await env.DB.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(nowIso()).run();
   const token = await createSession(env, user.id);
-  return json({ ok: true }, 200, { "Set-Cookie": sessionCookie(token) });
+  return json({ ok: true, expiresIn: SESSION_TTL_SECONDS }, 200, { "Set-Cookie": sessionCookie(token) });
 }
-
-async function joinFamily(request, env) {
-  const body = await readJson(request, 20_000);
-  const email = validateEmail(body.email);
-  const password = validatePassword(body.password);
-  const name = String(body.name || "").trim().slice(0, 40);
-  const code = String(body.inviteCode || "").trim().toUpperCase().replace(/\s+/g, "");
-  if (!email) return error("请输入有效的邮箱地址");
-  if (!password) return error("密码长度需要在 10 至 128 位之间");
-  if (!name) return error("请填写你的称呼");
-  if (!/^[A-Z0-9]{8}$/.test(code)) return error("请输入 8 位家庭邀请码");
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-  if (existing) return error("这个邮箱已经注册，请直接登录", 409);
-
-  const codeHash = await sha256(code);
-  const invitation = await env.DB.prepare(`
-    SELECT i.id, i.family_id
-    FROM family_invitations i
-    WHERE i.code_hash = ? AND i.used_at IS NULL AND i.expires_at > ?
-      AND (SELECT COUNT(*) FROM family_members fm WHERE fm.family_id = i.family_id) < 2
-    LIMIT 1
-  `).bind(codeHash, nowIso()).first();
-  if (!invitation) return error("邀请码无效、已使用或已过期，或家庭成员已满", 400);
-
-  const userId = uuid();
-  const now = nowIso();
-  const salt = randomHex(16);
-  const passwordHash = await hashPassword(password, salt);
-  const statements = [
-    env.DB.prepare(`UPDATE family_invitations SET used_at = ?
-      WHERE id = ? AND used_at IS NULL AND expires_at > ?
-      AND (SELECT COUNT(*) FROM family_members WHERE family_id = ?) < 2`)
-      .bind(now, invitation.id, now, invitation.family_id),
-    env.DB.prepare(`INSERT INTO users (id, email, name, password_hash, password_salt, created_at)
-      SELECT ?, ?, ?, ?, ?, ?
-      WHERE EXISTS (SELECT 1 FROM family_invitations WHERE id = ? AND used_at = ?)`)
-      .bind(userId, email, name, passwordHash, salt, now, invitation.id, now),
-    env.DB.prepare(`INSERT INTO family_members (family_id, user_id, role, joined_at)
-      SELECT ?, ?, 'editor', ?
-      WHERE EXISTS (SELECT 1 FROM family_invitations WHERE id = ? AND used_at = ?)`)
-      .bind(invitation.family_id, userId, now, invitation.id, now),
-    env.DB.prepare(`INSERT INTO user_preferences (user_id, settings_json, updated_at)
-      SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)` )
-      .bind(userId, JSON.stringify(DEFAULT_PREFERENCES), now, userId),
-  ];
-  const results = await env.DB.batch(statements);
-  if (!results[0]?.meta?.changes) return error("邀请码刚刚失效，请让家庭管理员重新生成", 409);
-  if (!results[1]?.meta?.changes || !results[2]?.meta?.changes) return error("加入家庭失败，请重新尝试", 409);
-  const token = await createSession(env, userId);
-  return json({ ok: true }, 201, { "Set-Cookie": sessionCookie(token) });
-}
-
 async function logout(request, env) {
   const token = cookieValue(request, SESSION_COOKIE);
   if (token) {
@@ -292,7 +173,7 @@ async function me(request, env) {
   const memberCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM family_members WHERE family_id = ?")
     .bind(session.family_id).first();
   return json({
-    user: { id: session.user_id, name: session.name, email: session.email },
+    user: { id: session.user_id, name: session.name },
     family: { id: session.family_id, name: session.family_name, role: session.role, memberCount: Number(memberCount?.total || 0) },
   });
 }
@@ -317,7 +198,6 @@ async function getState(session, env) {
   const members = (memberRows?.results || []).map((row) => ({
     id: row.id,
     name: row.name,
-    email: row.email,
     role: row.role === "owner" ? "管理员" : "编辑者",
   }));
   let settings = DEFAULT_PREFERENCES;
@@ -431,24 +311,6 @@ async function putPreferences(request, session, env) {
   return json({ ok: true, settings });
 }
 
-async function createInvitation(request, session, env) {
-  const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM family_members WHERE family_id = ?")
-    .bind(session.family_id).first();
-  if (Number(count?.total || 0) >= 2) return error("当前家庭已经有两位成员，无需再邀请", 409);
-  if (session.role !== "owner") return error("只有家庭管理员可以生成邀请码", 403);
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  for (const byte of bytes) code += alphabet[byte % alphabet.length];
-  const codeHash = await sha256(code);
-  const now = nowIso();
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  await env.DB.prepare(`INSERT INTO family_invitations (id, family_id, code_hash, created_by, expires_at, used_at, created_at)
-    VALUES (?, ?, ?, ?, ?, NULL, ?)`)
-    .bind(uuid(), session.family_id, codeHash, session.user_id, expiresAt, now).run();
-  return json({ code, expiresAt });
-}
-
 async function uploadFile(request, session, env) {
   if (!env.FILES) return error("当前部署尚未配置 Cloudflare R2 附件桶；请按部署文档启用可选 R2 配置", 501);
   const form = await request.formData();
@@ -488,11 +350,11 @@ async function handleApi(request, env) {
 
   if (path === "/api/health" && method === "GET") {
     const row = await env.DB.prepare("SELECT 1 AS ok").first();
-    return json({ ok: row?.ok === 1, service: "mycat-api", version: "1.0.0" });
+    return json({ ok: row?.ok === 1, service: "mycat-api", version: "1.1.0" });
   }
-  if (path === "/api/auth/register" && method === "POST") return register(request, env);
+  if (path === "/api/auth/register" && method === "POST") return error("当前为固定双账号模式，不开放自助注册", 403);
   if (path === "/api/auth/login" && method === "POST") return login(request, env);
-  if (path === "/api/auth/join" && method === "POST") return joinFamily(request, env);
+  if (path === "/api/auth/join" && method === "POST") return error("当前为固定双账号模式，不支持邀请码加入", 403);
   if (path === "/api/auth/logout" && method === "POST") return logout(request, env);
 
   const session = await requireSession(request, env);
@@ -501,7 +363,7 @@ async function handleApi(request, env) {
   if (path === "/api/state" && method === "GET") return getState(session, env);
   if (path === "/api/state" && method === "PUT") return putState(request, session, env);
   if (path === "/api/preferences" && method === "PUT") return putPreferences(request, session, env);
-  if (path === "/api/invitations" && method === "POST") return createInvitation(request, session, env);
+  if (path === "/api/invitations" && method === "POST") return error("当前为固定双账号模式，无需生成邀请码", 403);
   if (path === "/api/files" && method === "POST") return uploadFile(request, session, env);
   if (path.startsWith("/api/files/") && method === "GET") {
     let key = "";

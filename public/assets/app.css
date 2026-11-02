@@ -149,7 +149,7 @@ html,body{background:linear-gradient(180deg,#f4fafc 0%,#eef7f8 100%);color:#3156
 .star-a{right:9%;top:38px}.star-b{left:49%;top:126px}
 .auth-shell{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(390px,.95fr);gap:34px;align-items:center;max-width:1180px;margin:0 auto;padding:42px 34px}
 .auth-visual{position:relative;min-height:620px;border-radius:34px;overflow:hidden;background:#d8f1f8;box-shadow:0 18px 45px rgba(52,119,153,.13)}
-.auth-visual>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+.auth-visual>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:86% center}
 .auth-visual:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(23,67,96,.68),transparent 65%)}
 .auth-visual-copy{position:absolute;z-index:1;left:34px;right:30px;bottom:36px;color:#fff}
 .auth-visual-copy span{font-size:11px;font-weight:800;letter-spacing:2px;opacity:.9}
@@ -163,3 +163,12 @@ html,body{background:linear-gradient(180deg,#f4fafc 0%,#eef7f8 100%);color:#3156
 .logout-btn{white-space:nowrap}
 @media(max-width:850px){.auth-shell{grid-template-columns:1fr;max-width:560px;padding:20px 16px 40px;gap:18px}.auth-visual{min-height:230px;border-radius:25px}.auth-visual-copy{left:22px;bottom:19px}.auth-visual-copy h1{font-size:24px;margin:6px 0}.auth-visual-copy p{font-size:11px}.auth-card{padding:24px 20px}.storybook-sky{height:260px!important;min-height:260px!important;border-radius:27px}.hero-scene-img{object-position:70% center}.hero-scene-overlay{background:linear-gradient(90deg,rgba(195,235,249,.98) 0%,rgba(195,235,249,.93) 34%,rgba(195,235,249,.7) 50%,rgba(195,235,249,.22) 70%,rgba(195,235,249,0) 86%)}.hero-copy{max-width:62%;padding:23px 18px 12px}.hero-note{font-size:9px;letter-spacing:1.5px}.storybook-sky h1{font-size:24px;line-height:1.25}.storybook-sky p{font-size:11px;max-width:195px}.doodle-heart{left:auto;right:22%;top:24px;font-size:25px}.star-a{right:6%;top:26px}.star-b{left:54%;top:108px}.logout-btn{font-size:10px;padding:8px 9px}}
 @media(max-width:390px){.storybook-sky{height:238px!important;min-height:238px!important}.hero-copy{max-width:66%;padding:19px 15px 10px}.storybook-sky h1{font-size:21px}.storybook-sky p{font-size:10px;max-width:170px}.auth-card{padding:22px 17px}.auth-tabs button{font-size:11px}}
+
+/* Fixed two-account login */
+.auth-form select{width:100%;min-height:46px;padding:0 13px;border:1px solid #e2ecef;border-radius:13px;background:#f9fcfd;color:#31566b;font:inherit;font-size:13px;outline:none}
+.auth-form select:focus,.auth-form input:focus{border-color:#80c9ce;box-shadow:0 0 0 3px rgba(91,190,195,.13)}
+.auth-form input{width:100%;padding:0 13px;border:1px solid #e2ecef;border-radius:13px;background:#f9fcfd;color:#31566b}
+
+
+/* Keep the full three-cat group visible in the right side of the panoramic hero on desktop and mobile. */
+@media(max-width:850px){.auth-visual>img{object-position:right center}.hero-scene-img{object-position:right center}}
