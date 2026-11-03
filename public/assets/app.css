@@ -243,3 +243,107 @@ html,body{background:linear-gradient(180deg,#f4fafc 0%,#eef7f8 100%);color:#3156
   .mobile-home-title{display:block;color:#31566b;font-size:16px;font-weight:900;letter-spacing:.2px;white-space:nowrap}
   .topbar.home-topbar .right{margin-left:auto}
 }
+
+/* V1.1.5 — PC layout refinement for completed-date, weight and next-reminder */
+@media (min-width: 851px) {
+  .create-date-reminder-row.has-reminder {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+    gap: 14px;
+    align-items: stretch;
+    margin: 0 0 18px;
+  }
+  .create-date-reminder-row.has-reminder > .create-step {
+    min-width: 0;
+    min-height: 174px;
+    margin: 0;
+    padding: 16px 17px;
+    border: 1px solid #e8efea;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #fffefa 0%, #fbfdfb 100%);
+  }
+  .create-date-reminder-row.has-reminder > .create-date-step {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .create-date-reminder-row.has-reminder .create-date-step .step-heading {
+    margin-bottom: 12px;
+  }
+  .create-date-reminder-row.has-reminder .create-date-step .date-field-wrap {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .create-date-reminder-row.has-reminder .date-field-wrap .field {
+    gap: 5px;
+  }
+  .create-date-reminder-row.has-reminder .date-field-wrap .field input,
+  .create-date-reminder-row.has-reminder .date-field-wrap .field select {
+    min-height: 43px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step {
+    min-width: 0;
+    min-height: 174px;
+    margin: 0;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: linear-gradient(115deg, #fffaf0 0%, #f4faf4 100%);
+    border: 1px solid #eeeede;
+    border-radius: 20px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step .step-heading {
+    margin-bottom: 11px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step .date-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step .date-options .chip {
+    min-height: 35px;
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step > .subline {
+    margin-top: 9px;
+    font-size: 11px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step .custom-next-date {
+    max-width: 280px;
+    margin-top: 10px;
+  }
+}
+@media (min-width: 851px) and (max-width: 1100px) {
+  .create-date-reminder-row.has-reminder {
+    grid-template-columns: minmax(285px, 0.95fr) minmax(0, 1.05fr);
+    gap: 11px;
+  }
+  .create-date-reminder-row.has-reminder > .create-step,
+  .create-date-reminder-row.has-reminder > .next-step {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step .date-options {
+    gap: 6px;
+  }
+  .create-date-reminder-row.has-reminder > .next-step .date-options .chip {
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 850px) {
+  .create-date-reminder-row.has-reminder > .create-step {
+    min-height: 0;
+    padding: 0 0 17px;
+    border: 0;
+    border-bottom: 1px dashed #e4ede7;
+    border-radius: 0;
+    background: transparent;
+  }
+  .create-date-reminder-row.has-reminder > .next-step {
+    min-height: 0;
+  }
+}
