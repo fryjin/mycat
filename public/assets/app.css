@@ -190,7 +190,7 @@ html,body{background:linear-gradient(180deg,#f4fafc 0%,#eef7f8 100%);color:#3156
 @media(max-width:390px){.storybook-sky.storybook-image-only{height:228px!important;min-height:228px!important}}
 
 
-/* V1.1.3 — desktop form layout, required-field cues, date picker and weight trend. */
+/* V1.1.4 — repair form input rendering and weight entry, required-field cues, date picker and weight trend. */
 .required-star{display:inline-block;margin-right:5px;color:#e45b62;font-size:15px;font-weight:900;line-height:1;vertical-align:-1px}
 .required-heading:before{content:"*";display:inline-block;margin-right:7px;color:#e45b62;font-size:16px;font-weight:900;vertical-align:1px}
 .create-date-reminder-row{min-width:0}

@@ -350,7 +350,7 @@ async function handleApi(request, env) {
 
   if (path === "/api/health" && method === "GET") {
     const row = await env.DB.prepare("SELECT 1 AS ok").first();
-    return json({ ok: row?.ok === 1, service: "mycat-api", version: "1.1.3" });
+    return json({ ok: row?.ok === 1, service: "mycat-api", version: "1.1.4" });
   }
   if (path === "/api/auth/register" && method === "POST") return error("当前为固定双账号模式，不开放自助注册", 403);
   if (path === "/api/auth/login" && method === "POST") return login(request, env);
